@@ -1,0 +1,4 @@
+alfred_db/
+__pycache__/
+.venv/
+*.pyc

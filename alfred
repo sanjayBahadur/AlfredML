@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="${ROOT_DIR}/.venv"
+PY="${VENV}/bin/python"
+
+ensure_venv() {
+  if [[ ! -x "${PY}" ]]; then
+    echo "Alfred: I can't find your Python venv at ${VENV}."
+    echo "Run: python -m venv .venv && source .venv/bin/activate && pip install chromadb sentence-transformers watchdog rich requests"
+    exit 1
+  fi
+}
+
+ensure_ollama() {
+  if ! curl -s "http://localhost:11434/api/tags" >/dev/null 2>&1; then
+    echo "Alfred: Ollama isn't reachable at http://localhost:11434."
+    echo "Start it, then try again."
+    exit 1
+  fi
+}
+
+run_cli() {
+  (cd "${ROOT_DIR}" && "${PY}" -m alfred_ml.cli "$@")
+}
+
+cmd_help() {
+  cat <<'EOF'
+Alfred ML commands:
+  ./alfred ingest            Index files in ./alfred_docs (txt, md)
+  ./alfred watch             Auto-index when files change
+  ./alfred ask "question"    Ask using retrieved context
+  ./alfred chat              Interactive chat loop
+  ./alfred where             Show folders used (docs + db)
+
+Tips:
+  - Drop .txt or .md into ./alfred_docs
+  - Run ./alfred ingest once (or ./alfred watch)
+EOF
+}
+
+cmd_where() {
+  echo "Docs folder: ${ROOT_DIR}/alfred_docs"
+  echo "DB folder:   ${ROOT_DIR}/alfred_db"
+}
+
+cmd_chat() {
+  ensure_venv
+  ensure_ollama
+
+  echo "Alfred ML: Online. Drop docs into ./alfred_docs and type your questions."
+  echo "Type ':q' to quit, ':ingest' to re-index."
+  echo
+
+  while true; do
+    printf "alfred> "
+    IFS= read -r q || true
+
+    case "${q}" in
+      ":q" | ":quit" | ":exit")
+        echo "Alfred ML: disappearing politely."
+        break
+        ;;
+      ":ingest")
+        run_cli ingest
+        continue
+        ;;
+      "")
+        continue
+        ;;
+      *)
+        run_cli ask "${q}"
+        echo
+        ;;
+    esac
+  done
+}
+
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "${cmd}" in
+    help|-h|--help) cmd_help ;;
+    ingest) ensure_venv; ensure_ollama; run_cli ingest ;;
+    watch)  ensure_venv; ensure_ollama; run_cli watch ;;
+    ask)    ensure_venv; ensure_ollama; run_cli ask "$@" ;;
+    chat)   cmd_chat ;;
+    where)  cmd_where ;;
+    *) echo "Alfred: Unknown command '${cmd}'."; echo; cmd_help; exit 2 ;;
+  esac
+}
+
+main "$@"
