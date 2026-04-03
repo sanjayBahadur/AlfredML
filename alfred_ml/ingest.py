@@ -3,10 +3,9 @@ import logging
 from pathlib import Path
 from typing import Iterable
 
-from sentence_transformers import SentenceTransformer
-
 from .chunking import chunk_text
 from .config import AlfredConfig
+from .embedder import get_embedder
 from .store import open_store
 
 logger = logging.getLogger(__name__)
@@ -84,7 +83,7 @@ def ingest_all(cfg: AlfredConfig) -> dict[str, int]:
     cfg.db_dir.mkdir(parents=True, exist_ok=True)
 
     collection = open_store(str(cfg.db_dir), cfg.collection_name)
-    embedder = SentenceTransformer(cfg.embed_model)
+    embedder = get_embedder(cfg.embed_model)
 
     added_chunks = 0
     skipped_files = 0
