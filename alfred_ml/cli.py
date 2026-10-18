@@ -5,24 +5,28 @@ from rich import print
 from .config import AlfredConfig
 from .ingest import ingest_all
 from .rag import ask
-from .watch import watch
 from .tui import main_menu
+from .watch import watch
+
 
 def main():
     cfg = AlfredConfig.load()
 
-    p = argparse.ArgumentParser(prog="alfred")
+    p = argparse.ArgumentParser(prog="alfred", description="Alfred ML - Your local RAG assistant")
     sub = p.add_subparsers(dest="cmd")
 
-    sub.add_parser("ingest")
-    sub.add_parser("watch")
-    sub.add_parser("chat") # Legacy chat command, now aliases to TUI or simple mode?
-                           # Let's keep it but maybe it just launches TUI too or specific chat mode?
-                           # Current user request implies "more visual cli interface", so default should be TUI.
+    sub.add_parser("ingest", help="Index all documents in alfred_docs")
+    sub.add_parser("watch", help="Watch alfred_docs and automatically re-index on change")
+    sub.add_parser("chat", help="Launch interactive chat session")
 
-    q = sub.add_parser("ask")
-    q.add_argument("question", nargs="+")
-    
+    srv = sub.add_parser("serve", help="Start FastAPI REST API server")
+    srv.add_argument("--host", default="127.0.0.1", help="Host address (default: 127.0.0.1)")
+    srv.add_argument("--port", type=int, default=8000, help="Port number (default: 8000)")
+    srv.add_argument("--reload", action="store_true", help="Enable dev reload mode")
+
+    q = sub.add_parser("ask", help="Ask a single question and print the answer with sources")
+    q.add_argument("question", nargs="+", help="Question to ask")
+
     # If no args, launch TUI
     if len(sys.argv) == 1:
         try:
@@ -45,13 +49,19 @@ def main():
         print("\n[bold]Answer:[/bold]\n", out["answer"])
         print("\n[bold]Sources:[/bold]\n", out["sources"])
     elif args.cmd == "chat":
-        # Launch TUI's chat mode directly? Or main menu?
-        # Let's launch main menu for consistent experience, or TUI chat mode
         from .tui import chat_mode
+
         try:
             chat_mode(cfg)
         except KeyboardInterrupt:
             pass
+    elif args.cmd == "serve":
+        import uvicorn
+
+        print(f"[bold green]Starting Alfred ML API server on http://{args.host}:{args.port}[/bold green]")
+        print(f"[dim]Interactive API documentation at http://{args.host}:{args.port}/docs[/dim]")
+        uvicorn.run("alfred_ml.server:app", host=args.host, port=args.port, reload=args.reload)
+
 
 if __name__ == "__main__":
     main()

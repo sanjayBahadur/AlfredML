@@ -1,98 +1,195 @@
 # Alfred ML
 
-Alfred ML is your local, privacy-focused RAG (Retrieval-Augmented Generation) assistant. It uses [Ollama](https://ollama.com/) to analyze your personal documents and answer questions about them, all running offline on your machine.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Ollama](https://img.shields.io/badge/Ollama-Offline%20LLM-black.svg)](https://ollama.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector%20Store-orange.svg)](https://www.trychroma.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**Alfred ML** is a local, privacy-focused Retrieval-Augmented Generation (RAG) assistant. It indexes your personal documents, research PDFs, and source code using local vector embeddings, and answers queries via [Ollama](https://ollama.com/)—**100% offline, zero cloud leakage.**
+
+Available as an interactive Terminal UI (TUI), a command-line utility, and a **FastAPI REST API**.
+
+---
+
+## Architecture
+
+```
+                             [ Local Documents & Code ]
+                       (.pdf, .md, .txt, .py, .ts, .json, etc.)
+                                         │
+                                         ▼
+                               [ Text Chunker ]
+                                         │
+                                         ▼
+                      [ sentence-transformers (Local) ]
+                                         │
+                                         ▼
+                          [ ChromaDB Vector Store ]
+                                         ▲
+                                         │ Semantic Search (Top-K)
+                                         │
+[ User Query ] ──► [ Query Embedding ] ──┴──► [ Grounded Prompt ]
+                                                     │
+                                                     ▼
+                                          [ Ollama LLM (Local) ]
+                                          (llama3.2:1b-instruct)
+                                                     │
+                                                     ▼
+                                           [ Answer + Sources ]
+```
+
+---
+
+## Features
+
+* **Multi-Format Ingestion:** Indexes Markdown (`.md`), plain text (`.txt`), research papers / books (`.pdf`), and codebases (`.py`, `.ts`, `.js`, `.json`, etc.).
+* **100% Local & Private:** Embeddings (`sentence-transformers/all-MiniLM-L6-v2`) and generative models (`llama3.2`) run strictly on your hardware.
+* **Three Flexible Interfaces:**
+  * **Interactive TUI:** Rich terminal menus with model switching and live chat.
+  * **FastAPI REST API:** Full OpenAPI / Swagger documentation at `/docs` with `/ask`, `/ingest`, and `/health` endpoints.
+  * **CLI Commands:** Fast one-off queries and background file-system watching.
+* **Automated Sync:** Watches `alfred_docs/` via `watchdog` and updates changed or deleted documents in real-time.
+
+---
 
 ## Prerequisites
 
-Before setting up Alfred ML, ensure you have the following installed:
+1. **Python 3.10+**
+2. **[Ollama](https://ollama.com/)** running locally:
+   ```bash
+   # Start the Ollama daemon
+   ollama serve
 
-1.  **Python 3.10 or higher**
-2.  **[Ollama](https://ollama.com/)**: This powers the LLM backend.
-    -   **Install**: Follow instructions at [ollama.com](https://ollama.com/).
-    -   **Run**: Ensure Ollama is running (`ollama serve`).
-    -   **Model**: Alfred uses `llama3.2:1b-instruct-q4_K_M` by default. You can pull it via:
-        ```bash
-        ollama pull llama3.2:1b-instruct-q4_K_M
-        ```
-    *(Note: You can switch models later within the application)*
+   # Pull default lightweight model
+   ollama pull llama3.2:1b-instruct-q4_K_M
+   ```
 
-## Setup Guide
+---
 
-Follow these steps to set up the project on your local machine.
+## Quick Start
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/alfred-ml.git
-cd alfred-ml
-```
-
-### 2. Set Up Virtual Environment
-It is recommended to use a virtual environment to manage dependencies.
+### 1. Clone & Set Up
 
 ```bash
-# Create the virtual environment
+git clone https://github.com/sanjayBahadur/AlfredML.git
+cd AlfredML
+
+# Create and activate virtual environment
 python3 -m venv .venv
-
-# Activate it
 source .venv/bin/activate
-# On Windows, use: .venv\Scripts\activate
-```
+# Windows: .venv\Scripts\activate
 
-### 3. Install Dependencies
-Install the required Python packages.
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Organize Your Documents
-The repository includes an `alfred_docs/` directory. This is where you put the documents you want Alfred to read.
+### 2. Add Documents
 
--   **Action**: Copy your `.md` (Markdown) or `.txt` (Text) files into `alfred_docs/`.
--   **Note**: This directory is tracked (or you may choose to gitignore it if you fork the repo). By default, it may contain sample files. Feel free to remove them.
+Place any documents or code you want Alfred to analyze into `alfred_docs/`:
 
-## Usage
+```bash
+cp /path/to/my_notes.md alfred_docs/
+cp /path/to/research_paper.pdf alfred_docs/
+cp /path/to/main.py alfred_docs/
+```
 
-Alfred comes with a convenient wrapper script `./alfred`.
+### 3. Ingest Documents
 
-### Interactive Mode (Recommended)
-Simply run the script to launch the visual interface (TUI):
+```bash
+./alfred ingest
+```
+
+---
+
+## Usage Modes
+
+### 1. Interactive TUI (Recommended)
+Launch the visual terminal dashboard:
 
 ```bash
 ./alfred
 ```
+* **Chat:** Ask questions interactively with live source citation.
+* **Sync Documents:** Re-index files on demand.
+* **Manage Models:** Inspect and switch between installed Ollama models on the fly.
 
-From here, you can:
--   **Chat**: Interactively ask questions about your documents.
--   **Sync Documents**: Index new or changed files in `alfred_docs/`.
--   **Manage Models**: Switch between available Ollama models.
+### 2. FastAPI REST Server
+Start the production-ready HTTP server:
 
-### Command Line Interface
-You can also run specific commands directly:
+```bash
+./alfred serve --port 8000
+```
+Open **`http://localhost:8000/docs`** in your browser for the interactive Swagger UI.
 
--   **Ingest/Sync**: Manually trigger the indexing process.
-    ```bash
-    ./alfred ingest
-    ```
--   **Quick Ask**: Ask a single question without entering interactive mode.
-    ```bash
-    ./alfred ask "What is the summary of project X?"
-    ```
--   **Watch**: Automatically sync whenever you save a file in `alfred_docs/`.
-    ```bash
-    ./alfred watch
-    ```
+**Example Query via `curl`:**
+```bash
+curl -X POST "http://localhost:8000/ask" \
+     -H "Content-Type: application/json" \
+     -d '{"question": "What are the main findings in my notes?", "top_k": 4}'
+```
 
-## Configuration
+**Response:**
+```json
+{
+  "answer": "Based on your notes, the primary conclusions are...",
+  "sources": [
+    {"file_path": "alfred_docs/my_notes.md", "chunk_index": 0}
+  ]
+}
+```
 
-Settings are stored in `alfred_config.json`. This file is automatically created when you change settings (like the model) in the TUI. You can also manually edit `alfred_ml/config.py` to change defaults.
+### 3. Command Line Interface (CLI)
 
-## Files to Know
--   `alfred_docs/`: Drop your documents here.
--   `alfred_db/`: This directory is created automatically to store the vector database. **Do not commit this to version control.** (It is already in `.gitignore`).
--   `.venv/`: Your Python environment. (Ignored by `.gitignore`).
+* **Direct Ask:**
+  ```bash
+  ./alfred ask "Explain the architecture described in my docs"
+  ```
+* **Live Directory Watcher:**
+  ```bash
+  ./alfred watch
+  ```
+* **Directory Locations:**
+  ```bash
+  ./alfred where
+  ```
 
-## Troubleshooting
+---
 
--   **"Ollama isn't reachable"**: Make sure the Ollama server is running (usually on port 11434).
--   **"No module named..."**: Ensure you activated your virtual environment (`source .venv/bin/activate`) and installed requirements.
+## Running Tests
+
+Alfred ML includes a test suite covering text chunking edge cases, document ingestion, and FastAPI endpoints:
+
+```bash
+pytest
+```
+
+---
+
+## Project Structure
+
+```
+AlfredML/
+├── alfred                  # Executable launcher script
+├── alfred_ml/              # Core application package
+│   ├── chunking.py         # Overlapping text chunker (infinite-loop safe)
+│   ├── cli.py              # CLI subcommands & argument parsing
+│   ├── config.py           # Dataclass configuration loader
+│   ├── ingest.py           # Document parser (.pdf, .md, .py, etc.) & vector indexing
+│   ├── llm.py              # Ollama API client & model management
+│   ├── rag.py              # Semantic search & prompt synthesis
+│   ├── server.py           # FastAPI REST endpoints
+│   ├── store.py            # ChromaDB persistent client
+│   ├── tui.py              # Rich terminal dashboard
+│   └── watch.py            # File system event observer
+├── alfred_docs/            # Default indexed document directory
+├── pyproject.toml          # Package metadata & build configuration
+├── requirements.txt        # Production dependencies
+└── tests/                  # Unit and integration test suite
+```
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.

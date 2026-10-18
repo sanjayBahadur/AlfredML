@@ -1,4 +1,16 @@
+# Local databases and runtime state
 alfred_db/
-__pycache__/
+alfred_config.json
+
+# Python virtual environments and caches
 .venv/
-*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.DS_Store

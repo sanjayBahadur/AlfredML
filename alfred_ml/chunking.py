@@ -1,7 +1,16 @@
-def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 900, overlap: int = 120) -> list[str]:
+    """
+    Split text into overlapping chunks of characters.
+
+    Ensures forward progress even if overlap >= chunk_size.
+    """
     text = text.strip()
-    if not text:
+    if not text or chunk_size <= 0:
         return []
+
+    # Ensure overlap is strictly less than chunk_size to guarantee forward progress
+    safe_overlap = max(0, min(overlap, chunk_size - 1))
+    step = chunk_size - safe_overlap
 
     chunks: list[str] = []
     start = 0
@@ -12,8 +21,8 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        if end == n:
+        if end >= n:
             break
-        start = max(0, end - overlap)
+        start += step
 
     return chunks

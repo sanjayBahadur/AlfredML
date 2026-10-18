@@ -8,7 +8,7 @@ PY="${VENV}/bin/python"
 ensure_venv() {
   if [[ ! -x "${PY}" ]]; then
     echo "Alfred: I can't find your Python venv at ${VENV}."
-    echo "Run: python -m venv .venv && source .venv/bin/activate && pip install chromadb sentence-transformers watchdog rich requests"
+    echo "Run: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
     exit 1
   fi
 }
@@ -25,7 +25,6 @@ run_cli() {
   (cd "${ROOT_DIR}" && "${PY}" -m alfred_ml.cli "$@")
 }
 
-
 cmd_help() {
   cat <<'EOF'
 Alfred ML commands:
@@ -34,11 +33,12 @@ Alfred ML commands:
   ./alfred ingest            Index files in ./alfred_docs
   ./alfred watch             Auto-index when files change
   ./alfred ask "question"    Ask a single question
+  ./alfred serve             Start FastAPI REST server (http://127.0.0.1:8000)
   ./alfred where             Show folders used (docs + db)
 
 Tips:
-  - Place your .txt or .md files in ./alfred_docs
-  - Run ./alfred ingest to build the database
+  - Place your documents and code files (.pdf, .md, .txt, .py, etc.) in ./alfred_docs
+  - Run ./alfred ingest to build the vector database
 EOF
 }
 
@@ -52,7 +52,6 @@ main() {
   if [ $# -eq 0 ]; then
     ensure_venv
     ensure_ollama
-    # Call python module without arguments to trigger TUI
     run_cli
     exit 0
   fi
@@ -62,12 +61,13 @@ main() {
 
   case "${cmd}" in
     help|-h|--help) cmd_help ;;
-    ingest) ensure_venv; ensure_ollama; run_cli ingest ;;
-    watch)  ensure_venv; ensure_ollama; run_cli watch ;;
+    ingest) ensure_venv; run_cli ingest ;;
+    watch)  ensure_venv; run_cli watch ;;
     ask)    ensure_venv; ensure_ollama; run_cli ask "$@" ;;
     chat)   ensure_venv; ensure_ollama; run_cli chat ;;
+    serve)  ensure_venv; run_cli serve "$@" ;;
     where)  cmd_where ;;
-    *)      ensure_venv; ensure_ollama; run_cli "$cmd" "$@" ;;
+    *)      ensure_venv; run_cli "$cmd" "$@" ;;
   esac
 }
 
