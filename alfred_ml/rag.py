@@ -1,5 +1,4 @@
-from sentence_transformers import SentenceTransformer
-
+from .embedder import get_embedder
 from .store import open_store
 from .llm import ollama_generate
 from .config import AlfredConfig
@@ -23,7 +22,7 @@ Answer using only the context when possible. If missing, say what is missing.
 
 def ask(cfg: AlfredConfig, question: str) -> dict[str, object]:
     collection = open_store(str(cfg.db_dir), cfg.collection_name)
-    embedder = SentenceTransformer(cfg.embed_model)
+    embedder = get_embedder(cfg.embed_model)
 
     q_emb = embedder.encode([question], normalize_embeddings=True).tolist()[0]
     results = collection.query(
